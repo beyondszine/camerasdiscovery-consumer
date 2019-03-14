@@ -18,6 +18,7 @@
   "homepage": "https://github.com/beyondszine/ffmpeg-bull-longrun-jobconsumer#readme",
   "dependencies": {
     "bull": "^3.7.0",
+    "config": "^3.0.1",
     "fluent-ffmpeg": "^2.1.2"
   }
 }

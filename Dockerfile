@@ -6,8 +6,8 @@ RUN apt-get -y install nodejs
 
 # Create app directory 
 # The idea is to have /home/<language/framework>/repository
-RUN mkdir -p /home/nodejs/apps/camerasdiscovery
-WORKDIR /home/nodejs/apps/camerasdiscovery
+RUN mkdir -p /home/nodejs/apps/ffmpeg-bull-longrun-jobconsumer
+WORKDIR /home/nodejs/apps/ffmpeg-bull-longrun-jobconsumer
 
 # Install app dependencies
 # A wildcard is used to ensure both package.json AND package-lock.json are copied

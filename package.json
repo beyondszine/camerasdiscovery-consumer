@@ -4,7 +4,9 @@
   "description": "This is the BULL consumer for the long running jobs given for 'ffmpeg-as-a-service'.  All tasks like saving,streaming,transcoding etc are consumed as jobs are managed using BULL nodejs framework.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ffmpeg-consumer.js",
+    "devmode": "DEBUG=* nodemon ffmpeg-consumer.js"
   },
   "repository": {
     "type": "git",

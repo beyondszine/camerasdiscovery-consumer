@@ -1,6 +1,7 @@
 {
     "jobManager":"bull",
     "queueName": "VideoSaveJobs",
+    "dataDir": "/data", 
     "QueueOptions": {
         "limiter": {
             "max": 2,      

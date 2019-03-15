@@ -6,10 +6,11 @@ module.exports = function(job){
     const path = require('path');
     const cp = require('child_process');
     const uuidv1 = require('uuid/v1')
-    // var morgan = require('morgan');
+    const appConfig = require('config');
+    const cDebug = require('debug')('job');
 
     return new Promise(function(resolve,reject){
-        console.log(`Obtained job's id ${job.id} with data as :`, JSON.stringify(job.data));
+        cDebug(`Obtained job's id ${job.id} with data as :`, JSON.stringify(job.data));
         var maxtimeout=600;
         var streamopsObject = job.data;
         console.log("Ops Called with :",JSON.stringify(streamopsObject));
@@ -24,7 +25,14 @@ module.exports = function(job){
         var videosizeOption = streamopsObject.videostreamOptions.videosize || "1280x720";
         var videoformatOption = '-f '+ (streamopsObject.videostreamOptions.format || "mpegts");
         var videosaveduration = parseInt(streamopsObject.saveOptions.duration) || maxtimeout;
-
+        var outputFilename = null;
+        var mountedDirExists=fs.existsSync(appConfig.dataDir);
+        if(mountedDirExists){
+            outputFilename = appConfig.dataDir+'/'+streamopsObject.saveOptions.filename;
+        }
+        else{
+            outputFilename = './MediaOutput/'+streamopsObject.saveOptions.filename;
+        }
         var mcommand=ffmpeg(ffmpegOptions);
             mcommand
             .input(streamopsObject.url)
@@ -61,6 +69,6 @@ module.exports = function(job){
             .videoCodec(videocodecOption)
             .size(videosizeOption)
             .outputOptions(videoformatOption)
-            .save(streamopsObject.saveOptions.filename);
+            .save(outputFilename);
     });
 }   

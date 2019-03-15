@@ -2,6 +2,8 @@
   // 'use strict';
 
   const appConfig = require('config');
+  appConfig.util.loadFileConfigs('../config');
+
   const cDebug = require('debug')('consumer');
   const redisURI = `${appConfig.QueueOptions.redis.type}://${appConfig.QueueOptions.redis.host}:${appConfig.QueueOptions.redis.port}`;
   cDebug("default config params are:",appConfig);
@@ -14,7 +16,22 @@
   });
 
   var checkStorageValidity = new Promise(function(resolve,reject){
-    resolve();
+    var fs = require('fs');
+    if(!fs.existsSync(appConfig.dataDir)){
+      cDebug(`${appConfig.dataDir} doesnot exist!`);
+        if( !fs.existsSync(appConfig.localDataDir)){
+          cDebug(`${appConfig.localDataDir} doesnot exist!`);
+          cDebug("Data dump directories Dont Exist! Exiting");
+          process.exit(1);
+      }
+      else{
+        cDebug(`${appConfig.localDataDir} Exist!`);
+      }
+    }
+    else{
+      cDebug("Data dump directories Exist!");
+      resolve();
+    }
   });
 
   Promise.all([checkConfigurationValidity,checkStorageValidity])

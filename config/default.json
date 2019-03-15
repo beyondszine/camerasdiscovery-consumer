@@ -1,7 +1,8 @@
 {
     "jobManager":"bull",
     "queueName": "VideoSaveJobs",
-    "dataDir": "/data", 
+    "dataDir": "/data",
+    "localDataDir" : "./Jobs/MediaOutput",
     "QueueOptions": {
         "limiter": {
             "max": 2,      

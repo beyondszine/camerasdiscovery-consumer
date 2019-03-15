@@ -26,5 +26,5 @@ ENTRYPOINT ["/tini", "--"]
 # RUN groupadd -r nodejs && useradd -m -r -g nodejs nodejs
 # USER nodejs
 
-CMD ["npm", "start"]
-# CMD ["npm","run","devstart"]
+# CMD ["npm", "start"]
+CMD ["npm","run","devstart"]

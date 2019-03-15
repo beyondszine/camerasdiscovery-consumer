@@ -1,15 +1,12 @@
 module.exports = function(job){
-    // 'use strict';
+    'use strict';
     const ffmpeg = require('fluent-ffmpeg');
-    const util = require('util');    
     const fs = require('fs');
-    const path = require('path');
-    const cp = require('child_process');
-    const uuidv1 = require('uuid/v1')
     const appConfig = require('config');
     const cDebug = require('debug')('job');
 
-    return new Promise(function(resolve,reject){
+    cDebug("Worker Running Now!");
+    var execJob = new Promise(function(resolve,reject){
         cDebug(`Obtained job's id ${job.id} with data as :`, JSON.stringify(job.data));
         var maxtimeout=600;
         var streamopsObject = job.data;
@@ -60,7 +57,7 @@ module.exports = function(job){
             })
             .on('end', function(stdout, stderr) {
                 console.log('Transcoding succeeded !');
-                resolve(streamopsObject.saveOptions.filename);
+                resolve(outputFilename);
             })
             // Operations
             .noAudio()
@@ -71,4 +68,14 @@ module.exports = function(job){
             .outputOptions(videoformatOption)
             .save(outputFilename);
     });
+
+    return execJob
+    .then( () => {
+        cDebug("Job Done!");
+        // return "201 Completed!";
+    })
+    .catch(err => {
+        cDebug("Error happened in worker",err);
+        // return "ERROR!";
+    })
 }   

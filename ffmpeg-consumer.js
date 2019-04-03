@@ -6,7 +6,14 @@
 
   const cDebug = require('debug')('consumer');
   
-  var mRedisHost = process.env.redisHost || appConfig.QueueOptions.redis.host;
+  cDebug(`Redis Environment: redisHost: ${process.env.redisHost}, redisPort: ${process.env.redisPort}`);
+  var mRedisHost = null;
+
+  if(!process.env.redisHost){
+    cDebug("redisHost env variable not found!");
+    mRedisHost=appConfig.QueueOptions.redis.host;
+  }
+  // var mRedisHost = process.env.redisHost || appConfig.QueueOptions.redis.host;
   var mRedisPort = process.env.redisPort || appConfig.QueueOptions.redis.port;
   var mRedisProtocol =  process.env.redisProtocol || appConfig.QueueOptions.redis.type;
   const redisURI = `${mRedisProtocol}://${mRedisHost}:${mRedisPort}`;
@@ -46,8 +53,12 @@
     cDebug("All config checks have passed! Starting to Consume given Queue Now!");
     ffmpegJobsQueue.getJobs('VideoJobRunner')
     .then(mjobslist => {
-      cDebug("Jobs list:", JSON.stringify(mjobslist));
+      cDebug("Existing Jobs list:", JSON.stringify(mjobslist));
     })
+    .catch(err => {
+      cDebug('Error happened in querying current jobs list', err);
+      process.exit();
+    });
     ffmpegJobsQueue.process('VideoJobRunner','/home/beyond/github/ffmpeg-bull-longrun-jobconsumer/Jobs/videosaver.js');
   })
   .catch(err => {

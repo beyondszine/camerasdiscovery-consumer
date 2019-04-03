@@ -6,8 +6,8 @@ RUN apt-get -y install nodejs
 
 # Create app directory 
 # The idea is to have /home/<language/framework>/repository
-RUN mkdir -p /home/nodejs/apps/ffmpeg-bull-longrun-jobconsumer
-WORKDIR /home/nodejs/apps/ffmpeg-bull-longrun-jobconsumer
+RUN mkdir -p /home/nodejs/apps/camerasdiscovery-consumer
+WORKDIR /home/nodejs/apps/camerasdiscovery-consumer
 
 # Install app dependencies
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
@@ -25,6 +25,5 @@ ENTRYPOINT ["/tini", "--"]
 
 # RUN groupadd -r nodejs && useradd -m -r -g nodejs nodejs
 # USER nodejs
-
-# CMD ["npm", "start"]
-CMD ["npm","run","devstart"]
+CMD ["npm", "start"]
+# CMD ["npm","run","devstart"]

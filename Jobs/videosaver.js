@@ -41,7 +41,15 @@ module.exports = function(job){
                 'with ' + data.video + ' video');
             })
             .on('progress', function(progress) {
-                console.log('Processing: ' + JSON.stringify(progress));
+                // console.log('Processing: ' + JSON.stringify(progress));
+                let ptsize=parseInt(progress.targetSize)/1024;
+                let maxfsize=parseInt(streamopsObject.saveOptions.maxfilesize);
+                console.log(`target size: ${ptsize}, Output Maxfilesize: ${maxfsize}, Total Max. Time: ${streamopsObject.saveOptions.duration}`);
+                if( ptsize > maxfsize ){
+                    console.log("Output fulfilled size. Exiting!!");
+                    console.log('Progress Data: ' + JSON.stringify(progress));
+                    mcommand.emit('end');
+                }
                 // TODO: update job's progress by getting ffprobe on video stream & send stats via getting video native frame rate wrt current done i.e progress.frames.
             })
             .on('stderr', function(stderrLine) {
@@ -53,10 +61,11 @@ module.exports = function(job){
                     "_status" : "ERR",
                     "_message": emsg
                 };
-                console.log('Error:' + JSON.stringify(error_msg));
+                console.log('Error:' + JSON.stringify(err.message));
             })
             .on('end', function(stdout, stderr) {
                 console.log('Transcoding succeeded !');
+                mcommand.kill();
                 resolve(outputFilename);
             })
             // Operations

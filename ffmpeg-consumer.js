@@ -3,22 +3,24 @@
 
   const appConfig = require('config');
   appConfig.util.loadFileConfigs('../config');
-
+  const path = require('path');
   const cDebug = require('debug')('consumer');
   
-  cDebug(`Redis Environment: redisHost: ${process.env.redisHost}, redisPort: ${process.env.redisPort}`);
-  var mRedisHost = null;
+  console.log(`Redis Environment: redisHost: ${process.env.redisHost}, redisPort: ${process.env.redisPort}`);
+  // var mRedisHost;
+  const jobsPath=path.join(__dirname,'/Jobs/');
+  console.log(jobsPath);
 
+  var mRedisHost = process.env.redisHost || appConfig.QueueOptions.redis.host;
   if(!process.env.redisHost){
-    cDebug("redisHost env variable not found!");
+    console.log("redisHost env variable not found!");
     mRedisHost=appConfig.QueueOptions.redis.host;
   }
-  // var mRedisHost = process.env.redisHost || appConfig.QueueOptions.redis.host;
   var mRedisPort = process.env.redisPort || appConfig.QueueOptions.redis.port;
   var mRedisProtocol =  process.env.redisProtocol || appConfig.QueueOptions.redis.type;
   const redisURI = `${mRedisProtocol}://${mRedisHost}:${mRedisPort}`;
-  cDebug("default config params are:",appConfig);
-  cDebug(`redis URI formed is ${redisURI}`);
+  console.log("default config params are:",appConfig);
+  console.log(`redis URI formed is ${redisURI}`);
   
   const Queue = require(appConfig.jobManager);
   const ffmpegJobsQueue = new Queue(appConfig.queueName, redisURI);
@@ -38,12 +40,12 @@
           process.exit(1);
       }
       else{
-        cDebug(`${appConfig.localDataDir} Exist!`);
+        console.log(`Data dump directories Exist! Type: Interal, mounted : ${appConfig.localDataDir}`);
         resolve();
       }
     }
     else{
-      cDebug("Data dump directories Exist!");
+      console.log(`Data dump directories Exist! Type: External mounted : ${appConfig.dataDir}`);
       resolve();
     }
   });
@@ -59,7 +61,7 @@
       cDebug('Error happened in querying current jobs list', err);
       process.exit();
     });
-    ffmpegJobsQueue.process('VideoJobRunner','/home/beyond/github/ffmpeg-bull-longrun-jobconsumer/Jobs/videosaver.js');
+    ffmpegJobsQueue.process('VideoJobRunner',jobsPath+'videosaver.js');
   })
   .catch(err => {
     cDebug("Error occured after Checks!",err);

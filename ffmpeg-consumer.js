@@ -23,7 +23,8 @@
   console.log(`redis URI formed is ${redisURI}`);
   
   const Queue = require(appConfig.jobManager);
-  const ffmpegJobsQueue = new Queue(appConfig.queueName, redisURI);
+  const ffmpegJobsQueue = new Queue(appConfig.VideoJobsQueueName, redisURI);
+  const relayServerJobsQueue = new Queue(appConfig.RelayServerJobsQueueName, redisURI);
 
   var checkConfigurationValidity = new Promise(function(resolve,reject){
     // TODO : check all params for their validity
@@ -53,7 +54,7 @@
   Promise.all([checkConfigurationValidity,checkStorageValidity])
   .then(() => {
     cDebug("All config checks have passed! Starting to Consume given Queue Now!");
-    ffmpegJobsQueue.getJobs('VideoJobRunner')
+    ffmpegJobsQueue.getJobs(appConfig.VideoJobsType)
     .then(mjobslist => {
       cDebug("Existing Jobs list:", JSON.stringify(mjobslist));
     })
@@ -61,7 +62,8 @@
       cDebug('Error happened in querying current jobs list', err);
       process.exit();
     });
-    ffmpegJobsQueue.process('VideoJobRunner',jobsPath+'videosaver.js');
+    relayServerJobsQueue.process(appConfig.RelayServerJobsType,jobsPath+'relayServer.js');
+    ffmpegJobsQueue.process(appConfig.VideoJobsType,jobsPath+'videosaver.js');
   })
   .catch(err => {
     cDebug("Error occured after Checks!",err);

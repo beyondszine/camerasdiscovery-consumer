@@ -1,6 +1,9 @@
 {
     "jobManager":"bull",
-    "queueName": "VideoSaveJobs",
+    "VideoJobsQueueName": "VideoSaveJobs",
+    "VideoJobsType" : "SaveNStream",
+    "RelayServerJobsQueueName" : "RelayServerJobs",
+    "RelayServerJobsType": "RelayServers",
     "dataDir": "/data",
     "localDataDir" : "./Jobs/MediaOutput",
     "QueueOptions": {

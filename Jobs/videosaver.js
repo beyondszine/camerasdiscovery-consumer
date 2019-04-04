@@ -4,32 +4,58 @@ module.exports = function(job){
     const fs = require('fs');
     const appConfig = require('config');
     const cDebug = require('debug')('job');
+    const Queue = require(appConfig.jobManager);
+    const relayServerJobsQueue = new Queue(appConfig.RelayServerJobsQueueName, redisURI);
+
 
     cDebug("Worker Running Now!");
-    var execJob = new Promise(function(resolve,reject){
-        cDebug(`Obtained job's id ${job.id} with data as :`, JSON.stringify(job.data));
-        var maxtimeout=600;
-        var streamopsObject = job.data;
-        console.log("Ops Called with :",JSON.stringify(streamopsObject));
-        var ffmpegOptions={
-            timeout : maxtimeout,
-            // logger : morgan('combined', { stream: accessLogStream })
-        };// in seconds
+    cDebug(`Obtained job's id ${job.id} with data as :`, JSON.stringify(job.data));
+    cDebug("Called with :",JSON.stringify(streamopsObject));
 
-        var transportInputOptions='-rtsp_transport '+ (streamopsObject.videostreamOptions.transport || "tcp");
-        var videocodecOption = streamopsObject.videostreamOptions.codec || 'mpeg1video';
-        var fpsOption = streamopsObject.videostreamOptions.fps || "auto";
-        var videosizeOption = streamopsObject.videostreamOptions.videosize || "1280x720";
-        var videoformatOption = '-f '+ (streamopsObject.videostreamOptions.format || "mpegts");
-        var videosaveduration = parseInt(streamopsObject.saveOptions.duration) || maxtimeout;
-        var outputFilename = null;
-        var mountedDirExists=fs.existsSync(appConfig.dataDir);
-        if(mountedDirExists){
-            outputFilename = appConfig.dataDir+'/'+streamopsObject.saveOptions.filename;
+    var maxtimeout=600;
+    var streamopsObject = job.data;
+    var ffmpegOptions={
+        timeout : maxtimeout  // in seconds
+    };
+
+    var transportInputOptions='-rtsp_transport '+ (streamopsObject.videostreamOptions.transport || "tcp");
+    var videocodecOption = streamopsObject.videostreamOptions.codec || 'mpeg1video';
+    var fpsOption = streamopsObject.videostreamOptions.fps || "auto";
+    var videosizeOption = streamopsObject.videostreamOptions.videosize || "1280x720";
+    var videoformatOption = '-f '+ (streamopsObject.videostreamOptions.format || "mpegts");
+    var videosaveduration = parseInt(streamopsObject.saveOptions.duration) || maxtimeout;
+    var outputEndPoint = null;
+
+
+    var resolveEndpoint = new Promise(function(resolve,reject){
+        if(streamopsObject.type=="local" && streamopsObject.videostreamOptions.restream==true){
+            // Need the dumping http server endpoint
+            // Add the relay Server Job to correspoding queue & on every job in serverjob queue completion, if job's id matches
+            // then using the result which will have the SERVER port numbers, output end point is found. 
+            relayServerJobsQueue.on('completed',function(job,result){
+                console.log(`job completed in relayServerJobsQueue with id: ${job.id} & brought result : ${result}`);
+                outputEndPoint = 'http://localhost:'+result.STREAM_PORT;
+                console.log(`outputEndpoint for ffmpeg is: ${outputEndPoint}`);
+                resolve(outputEndPoint);
+            });
+        }
+        else if(streamopsObject.type=="local" && streamopsObject.videostreamOptions.restream==false && streamopsObject.saveOptions){
+            var mountedDirExists=fs.existsSync(appConfig.dataDir);
+            if(mountedDirExists){
+                outputEndPoint = appConfig.dataDir+'/'+streamopsObject.saveOptions.filename;
+            }
+            else{
+                outputEndPoint = './MediaOutput/'+streamopsObject.saveOptions.filename;
+            }
+            resolve(outputEndPoint);
         }
         else{
-            outputFilename = './MediaOutput/'+streamopsObject.saveOptions.filename;
-        }
+            console.error("Bad input given! Exiting");
+            reject("Could not resolve Endpoint!");
+        }    
+    });
+
+    var execJob = new Promise(function(resolve,reject){
         var mcommand=ffmpeg(ffmpegOptions);
             mcommand
             .input(streamopsObject.url)
@@ -41,7 +67,7 @@ module.exports = function(job){
                 'with ' + data.video + ' video');
             })
             .on('progress', function(progress) {
-                // console.log('Processing: ' + JSON.stringify(progress));
+                // Stopping at Max file size restriction.
                 let ptsize=parseInt(progress.targetSize)/1024;
                 let maxfsize=parseInt(streamopsObject.saveOptions.maxfilesize);
                 console.log(`target size: ${ptsize}, Output Maxfilesize: ${maxfsize}, Total Max. Time: ${streamopsObject.saveOptions.duration}`);
@@ -65,8 +91,9 @@ module.exports = function(job){
             })
             .on('end', function(stdout, stderr) {
                 console.log('Transcoding succeeded !');
-                mcommand.kill();
-                resolve(outputFilename);
+                // raise some more GLOBAL events.
+                // mcommand.kill();
+                resolve(outputEndPoint);
             })
             // Operations
             .noAudio()
@@ -75,16 +102,17 @@ module.exports = function(job){
             .videoCodec(videocodecOption)
             .size(videosizeOption)
             .outputOptions(videoformatOption)
-            .save(outputFilename);
+            .save(outputEndPoint);
     });
 
-    return execJob
+    return resolveEndpoint
+    .then(execJob)
     .then( () => {
         cDebug("Job Done!");
         // return "201 Completed!";
     })
     .catch(err => {
         cDebug("Error happened in worker",err);
-        // return "ERROR!";
+        reject(err);
     })
 }   

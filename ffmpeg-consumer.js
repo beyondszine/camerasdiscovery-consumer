@@ -28,17 +28,18 @@
 
   var checkConfigurationValidity = new Promise(function(resolve,reject){
     // TODO : check all params for their validity
+    console.log("Configuration Valid!");
     resolve();
   });
 
   var checkStorageValidity = new Promise(function(resolve,reject){
     var fs = require('fs');
     if(!fs.existsSync(appConfig.dataDir)){
-      cDebug(`${appConfig.dataDir} doesnot exist!`);
+      console.log(`${appConfig.dataDir} doesnot exist!`);
         if( !fs.existsSync(appConfig.localDataDir)){
-          cDebug(`${appConfig.localDataDir} doesnot exist!`);
-          cDebug("Data dump directories Dont Exist! Exiting");
-          process.exit(1);
+          console.log(`${appConfig.localDataDir} doesnot exist!`);
+          console.log("Data dump directories Dont Exist! Exiting");
+          reject("Data dump directories Dont Exist!");
       }
       else{
         console.log(`Data dump directories Exist! Type: Interal, mounted : ${appConfig.localDataDir}`);
@@ -53,25 +54,54 @@
 
   Promise.all([checkConfigurationValidity,checkStorageValidity])
   .then(() => {
-    cDebug("All config checks have passed! Starting to Consume given Queue Now!");
+    console.log("All config checks have passed! Starting to Consume given Queue Now!");
     ffmpegJobsQueue.getJobs(appConfig.VideoJobsType)
     .then(mjobslist => {
-      cDebug("Existing Jobs list:", JSON.stringify(mjobslist));
+      console.log("Existing Jobs list:", JSON.stringify(mjobslist));
     })
     .catch(err => {
       cDebug('Error happened in querying current jobs list', err);
       process.exit();
     });
+    console.log("Starting to process Queue:",appConfig.RelayServerJobsQueueName);
     relayServerJobsQueue.process(appConfig.RelayServerJobsType,jobsPath+'relayServer.js');
+    console.log("Starting to process Queue:",appConfig.VideoJobsQueueName);
     ffmpegJobsQueue.process(appConfig.VideoJobsType,jobsPath+'videosaver.js');
   })
   .catch(err => {
-    cDebug("Error occured after Checks!",err);
-    process.exit();
+    cDebug("Error occured during Checks!",err);
+    process.exitCode=1;
   });
   
   ffmpegJobsQueue.on('completed', (job,result) => {
-    cDebug(`Job named ${job.name} with Job ID ${job.id} completed with result as ${result}`);
+    console.log(`Job named ${job.name} with Job ID ${job.id} completed with result as ${JSON.stringify(result)}`);
+    // TODO : send some events 
+  });
+  relayServerJobsQueue.on('completed', (job,result) => {
+    // console.log(`Job named ${job.name} with Job ID ${job.id} having data: ${JSON.stringify(job.data)}, completed with result as ${JSON.stringify(result)}`);
+    const VideoJobsType="SaveNStream";
+    var saveOptions = {
+			"type" : "URL",
+			"value" : function(){
+        let ep="http://localhost:"+result.STREAM_PORT+"/"+result.STREAM_SECRET;
+        console.log(ep);
+        return ep;
+      }(),
+      "streamParams" : result
+		};
+
+    var newJobData = Object.assign({},job.data,{"saveOptions":saveOptions});
+    newJobData.videostreamOptions.restream = false;
+    console.log("New Object for Video Save Job:",JSON.stringify(newJobData));
+    var myjob=ffmpegJobsQueue.add(VideoJobsType, newJobData); // myjob is a promise to make a job enter in queue.
+    myjob
+    .then(function(mjob){ // mjob is now the job itself.
+      console.log(`Job added! jobs's id is ${mjob.id}`);
+      // return mjob;    
+    })
+    .catch(err => {
+        throw new Error(err);
+    });
     // TODO : send some events 
   });
 })();

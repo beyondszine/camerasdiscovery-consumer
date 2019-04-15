@@ -5,7 +5,7 @@
     "RelayServerJobsQueueName" : "RelayServerJobs",
     "RelayServerJobsType": "RelayServers",
     "dataDir": "/data",
-    "localDataDir" : "./Jobs/MediaOutput",
+    "localDataDir" : "Media",
     "QueueOptions": {
         "limiter": {
             "max": 2,      

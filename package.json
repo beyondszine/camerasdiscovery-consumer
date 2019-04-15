@@ -21,6 +21,8 @@
   "dependencies": {
     "bull": "^3.7.0",
     "config": "^3.0.1",
-    "fluent-ffmpeg": "^2.1.2"
+    "fluent-ffmpeg": "^2.1.2",
+    "get-port": "^5.0.0",
+    "ws": "^6.2.1"
   }
 }

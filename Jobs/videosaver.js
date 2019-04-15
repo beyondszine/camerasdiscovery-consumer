@@ -1,17 +1,18 @@
 module.exports = function(job){
     'use strict';
     const ffmpeg = require('fluent-ffmpeg');
+    console.log("Loaded fluent-ffmpeg");
     const fs = require('fs');
+    console.log("Loaded fs");
     const appConfig = require('config');
     const cDebug = require('debug')('job');
     const Queue = require(appConfig.jobManager);
+    const path = require('path');
+    const redisURI = 'redis://192.168.1.119:6379';
     const relayServerJobsQueue = new Queue(appConfig.RelayServerJobsQueueName, redisURI);
 
-
-    cDebug("Worker Running Now!");
-    cDebug(`Obtained job's id ${job.id} with data as :`, JSON.stringify(job.data));
-    cDebug("Called with :",JSON.stringify(streamopsObject));
-
+    console.log("Worker Running Now!");
+    console.log(`Obtained job's id ${job.id} with data as :`, JSON.stringify(job.data));
     var maxtimeout=600;
     var streamopsObject = job.data;
     var ffmpegOptions={
@@ -27,36 +28,48 @@ module.exports = function(job){
     var outputEndPoint = null;
 
 
-    var resolveEndpoint = new Promise(function(resolve,reject){
-        if(streamopsObject.type=="local" && streamopsObject.videostreamOptions.restream==true){
-            // Need the dumping http server endpoint
-            // Add the relay Server Job to correspoding queue & on every job in serverjob queue completion, if job's id matches
-            // then using the result which will have the SERVER port numbers, output end point is found. 
-            relayServerJobsQueue.on('completed',function(job,result){
-                console.log(`job completed in relayServerJobsQueue with id: ${job.id} & brought result : ${result}`);
-                outputEndPoint = 'http://localhost:'+result.STREAM_PORT;
-                console.log(`outputEndpoint for ffmpeg is: ${outputEndPoint}`);
-                resolve(outputEndPoint);
-            });
-        }
-        else if(streamopsObject.type=="local" && streamopsObject.videostreamOptions.restream==false && streamopsObject.saveOptions){
-            var mountedDirExists=fs.existsSync(appConfig.dataDir);
-            if(mountedDirExists){
-                outputEndPoint = appConfig.dataDir+'/'+streamopsObject.saveOptions.filename;
+    var resolveEndpoint = function(){
+        return new Promise(function(resolve,reject){
+            console.log('Executing: resolveEndpoint Promise');
+            var endpoint;
+            if(streamopsObject.type=="local" && streamopsObject.videostreamOptions.restream==false){
+                console.log("local & false");
+                if( (streamopsObject.saveOptions.type == "FILE") || (streamopsObject.saveOptions.type == "file") || (streamopsObject.saveOptions.type == "File") ){
+                    var mountedDirExists=fs.existsSync(appConfig.dataDir);
+                    if(mountedDirExists){
+                        console.log(`${appConfig.dataDir} Exists`);
+                        endpoint = appConfig.dataDir+'/'+streamopsObject.saveOptions.filename;
+                        console.log("Resolving resolveEndpoint Promise with",endpoint);
+                        resolve(endpoint);
+                    }
+                    else{
+                        // let t = path.join(__dirname,'/Media') +streamopsObject.saveOptions.filename
+                        console.log(`${appConfig.dataDir} Does NOT Exists, Saving in Local folder!`);
+                        endpoint = path.join(__dirname,'../Media/') + streamopsObject.saveOptions.filename;
+                        console.log("Endpoint: ",endpoint);
+                        console.log("Resolving resolveEndpoint Promise with",endpoint);
+                        resolve(endpoint);
+                    }
+                }
+                else if(streamopsObject.saveOptions.type == "URL" || (streamopsObject.saveOptions.type == "Url") || (streamopsObject.saveOptions.type == "url")){
+                    endpoint=streamopsObject.saveOptions.value;
+                    resolve(endpoint);
+                }
+                else{
+                    console.error("Bad input given! Exiting");
+                    reject("Unesolvable Endpoint!");
+                }
             }
             else{
-                outputEndPoint = './MediaOutput/'+streamopsObject.saveOptions.filename;
-            }
-            resolve(outputEndPoint);
-        }
-        else{
-            console.error("Bad input given! Exiting");
-            reject("Could not resolve Endpoint!");
-        }    
-    });
+                console.error("Bad input given! Exiting");
+                reject("Could not resolve Endpoint!");
+            }    
+        });
+    };
 
-    var execJob = new Promise(function(resolve,reject){
-        var mcommand=ffmpeg(ffmpegOptions);
+    var execJob = function(endPoint){
+        return new Promise(function(resolve,reject){
+            var mcommand=ffmpeg(ffmpegOptions);
             mcommand
             .input(streamopsObject.url)
             .on('start', function(commandLine) {
@@ -88,12 +101,13 @@ module.exports = function(job){
                     "_message": emsg
                 };
                 console.log('Error:' + JSON.stringify(err.message));
+                reject(err);
             })
             .on('end', function(stdout, stderr) {
                 console.log('Transcoding succeeded !');
                 // raise some more GLOBAL events.
                 // mcommand.kill();
-                resolve(outputEndPoint);
+                resolve(endPoint);
             })
             // Operations
             .noAudio()
@@ -102,10 +116,11 @@ module.exports = function(job){
             .videoCodec(videocodecOption)
             .size(videosizeOption)
             .outputOptions(videoformatOption)
-            .save(outputEndPoint);
-    });
+            .save(endPoint);
+        });
+    };
 
-    return resolveEndpoint
+    return resolveEndpoint()
     .then(execJob)
     .then( () => {
         cDebug("Job Done!");
@@ -113,6 +128,5 @@ module.exports = function(job){
     })
     .catch(err => {
         cDebug("Error happened in worker",err);
-        reject(err);
-    })
+    });
 }   
